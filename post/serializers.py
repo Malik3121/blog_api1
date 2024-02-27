@@ -1,6 +1,8 @@
 from rest_framework.serializers import ModelSerializer, ValidationError, ReadOnlyField
 from .models import Post, Tag, Category
-
+from review.models import *
+from review.serializers import *
+from django.db.models import Avg
 
 class TagSerializer(ModelSerializer):
     class Meta:
@@ -11,7 +13,7 @@ class TagSerializer(ModelSerializer):
 class CategorySerializer(ModelSerializer):
     class Meta:
         model = Category
-        fields = ('title',)
+        fields = ('title')
 
 
 class PostSerializer(ModelSerializer):
@@ -28,12 +30,16 @@ class PostSerializer(ModelSerializer):
             )
         return title
     
-    # def to_representation(self, instance):
-    #     representation = super().to_representation(instance)
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
     #     # representation['test'] = 'test' 
     #     # representation['tags'] = instance.tags.all().count()  
-    #     return representation 
-        # return {'test': 'hello'}
+        representation['comments'] = CommentSerializer(Comment.objects.filter(post=instance.pk), many=True).data
+        representation['rating'] = instance.ratings.aggregate(Avg('rating'))['rating__avg']
+        representation
+        return representation
+
+
     
     def create(self, validated_data):
         request = self.context.get('request')

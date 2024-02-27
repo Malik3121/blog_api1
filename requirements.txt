@@ -4,4 +4,6 @@ Pillow
 psycopg2-binary
 python-decouple
 python-slugify
+django-filter
+drf-yasg
 

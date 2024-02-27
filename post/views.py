@@ -5,16 +5,22 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.pagination import CursorPagination
+from rest_framework.decorators import action
+from review.models import Like
+from rest_framework.permissions import IsAdminUser, AllowAny, IsAuthenticated
+from .permissions import IsAuthorPermissions
 
 
 class TagView(generics.ListCreateAPIView):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
+    permission_classes = [IsAdminUser]
 
 
 class CategoryView(generics.ListCreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    permission_classes = [IsAdminUser]
 
 
 class CustomCursorPagination(CursorPagination):
@@ -31,10 +37,34 @@ class PostViewSet(viewsets.ModelViewSet):
     # ordering_fields = ['title']
     pagination_class = CustomCursorPagination
 
+    def get_permissions(self):
+        if self.action in ['list', 'retrive']:
+            permissions = [AllowAny]
+        elif self.action == 'create':
+            permissions = [IsAuthenticated]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            permissions = [IsAuthorPermissions]
+        return [permissions() for permissions in permissions]
+
+
     def get_serializer_class(self):
         if self.action == 'list':
             return PostListSerializer
         return self.serializer_class
+    
+    @action(methods=['POST'], detail=True, permission_classes=[IsAuthenticated])
+    def like(self, request, pk=None):
+        post = self.get_object()
+        user = request.user
+        try:
+            like = Like.objects.create(post=post, author=user)
+            like.delete()
+            message='dislike'
+        except Like.DoesNotExist:
+            like = Like.objects.create(post=post, author=user)
+            message='liked'
+        return Response('liked', status=200)
+    
     
 
 # class PostView(APIView):
